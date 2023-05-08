@@ -9,6 +9,7 @@ import {NestExpressApplication} from "@nestjs/platform-express";
   app.enableCors({ origin: '*' });
 
   app.use(express.static('../public/build/static'));
+  app.setGlobalPrefix('api');
 
   await app.listen(3000);
 })();
