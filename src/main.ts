@@ -11,5 +11,5 @@ import {NestExpressApplication} from "@nestjs/platform-express";
   app.use(express.static('../public/build/static'));
   app.setGlobalPrefix('api');
 
-  await app.listen(3000);
+  await app.listen(5000);
 })();
