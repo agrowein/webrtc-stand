@@ -6,7 +6,7 @@ import {
   WebSocketServer
 } from '@nestjs/websockets';
 import { OnGatewayConnection } from '@nestjs/websockets/interfaces/hooks/on-gateway-connection.interface';
-import { Server } from 'socket.io';
+import {Server, Socket} from 'socket.io';
 import { UserService } from '../user/user.service';
 import { CallService } from './call.service';
 import { UseGuards } from '@nestjs/common';
@@ -14,9 +14,15 @@ import { WsGuard } from '../../guards/ws.guard';
 import { SocketWithUser } from './call.types';
 import {JwtService} from '@nestjs/jwt';
 
-@UseGuards(WsGuard)
-@WebSocketGateway()
-export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
+// @UseGuards(WsGuard)
+@WebSocketGateway({ transport: 'websocket', cors: {
+    origin: '*', // Здесь можно указать разрешенный источник (например, 'http://example.com')
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // Здесь можно указать разрешенные методы
+    allowedHeaders: ['*'], // Здесь можно указать разрешенные заголовки
+    credentials: true, // Разрешить отправку куки
+  }
+})
+export class CallGateway {
   constructor(
     private userService: UserService,
     private callService: CallService,
@@ -26,43 +32,52 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage('request')
-  handleRequest(client: SocketWithUser, payload: any) {
-    
+  @SubscribeMessage('newUser')
+  handleNewUser(client: Socket, data: any) {
+    // Обработка нового пользователя
+    console.log('New user connected:', client.id);
+
+    // Отправка приветственного сообщения новому пользователю
+    client.emit('message', 'Welcome to the chat!');
+
+    // Отправка оповещения о новом пользователе другим пользователям
+    client.broadcast.emit('join', client.id);
   }
 
-  @SubscribeMessage('call')
-  handleCall(client: SocketWithUser, payload: any) {
+  @SubscribeMessage('offer')
+  handleOffer(client: Socket, { to, offer }: { to: string, offer: RTCSessionDescriptionInit }) {
+    // Обработка получения оффера от пользователя
+    console.log('Received offer from user:', client.id);
 
+    // Логика обработки оффера
+    // ...
+
+    // Отправка оффера другому пользователю
+    this.server.to(to).emit('offer', offer);
   }
 
-  @SubscribeMessage('end')
-  handleEnd(client: SocketWithUser, payload: any) {
+  @SubscribeMessage('answer')
+  handleAnswer(client: Socket, { to, answer }: { to: string, answer: RTCSessionDescriptionInit }) {
+    // Обработка получения ответа от пользователя
+    console.log('Received answer from user:', client.id);
 
+    // Логика обработки ответа
+    // ...
+
+    // Отправка ответа другому пользователю
+    this.server.to(to).emit('answer', answer);
   }
 
-  afterInit(server: Server) {
+  @SubscribeMessage('candidate')
+  handleCandidate(client: Socket, { to, candidate }: { to: string, candidate: RTCIceCandidateInit}) {
+    // Обработка получения кандидата от пользователя
+    console.log('Received candidate from user:', client.id);
 
-  }
+    // Логика обработки кандидата
+    // ...
 
-  async handleConnection(client: SocketWithUser) {
-    try {
-      const authorization = client.handshake.headers.authorization;
-      const token = authorization.split(' ')[1] ?? '';
-      const payload = await this.jwtService.verifyAsync(token);
-
-      client.user = { login: payload.login };
-      const clientFromServer = this.server.sockets.sockets.get(client.id);
-      this.server.sockets.sockets.delete(client.id);
-      this.server.sockets.sockets.set(payload.login, clientFromServer);
-    } catch (e) {
-      client.emit('error', 'Unauthorized');
-      client.disconnect();
-    }
-  }
-
-  handleDisconnect(client: SocketWithUser) {
-
+    // Отправка кандидата другому пользователю
+    this.server.to(to).emit('candidate', candidate);
   }
 
 }

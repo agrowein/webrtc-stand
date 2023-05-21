@@ -10,14 +10,12 @@ export const SignInForm = () => {
   const navigate = useNavigate();
 
   const submitHandler = (values: LoginDto) => {
-    console.log(values);
     authService.login(values)
       .then(res => {
         const token = res.data.accessToken;
         cookie.set({
           accessToken: token,
         });
-        
         navigate('/');
       })
       .catch(err => console.log(err))
